@@ -1,0 +1,628 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>CHINNAPATRA POST MANAGEMENT</title>
+  <style>
+    /* Modern market-ready responsive CSS (no external libs) */
+    :root{
+      --bg:#f7fbff; --panel:#ffffff; --muted:#52606a; --accent:#0ea5e9; --accent-2:#0369a1;
+      --success:#10b981; --danger:#ef4444; --warning:#f59e0b; --glass:rgba(255,255,255,0.6);
+      --radius:12px; --shadow:0 10px 30px rgba(2,6,23,0.06);
+      --max-width:1150px; --gap:16px; --pad:14px;
+      --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
+    }
+    [data-theme="dark"]{
+      --bg:#071025; --panel:#071427; --muted:#9fb0bf; --accent:#38bdf8; --accent-2:#60a5fa; --glass:rgba(255,255,255,0.03);
+      --shadow: 0 8px 24px rgba(0,0,0,0.6);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:var(--font-sans);background:linear-gradient(180deg,var(--bg),#eaf6ff);color:var(--muted);-webkit-font-smoothing:antialiased}
+
+    header{display:flex;align-items:center;gap:12px;padding:10px 18px;background:linear-gradient(90deg,var(--accent),var(--accent-2));color:white}
+    header .brand{font-weight:700;font-size:18px;letter-spacing:0.6px}
+    header .subtitle{font-size:13px;opacity:0.95}
+    header .actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+
+    .container{max-width:var(--max-width);margin:18px auto;padding:0 18px}
+    .layout{display:grid;grid-template-columns:260px 1fr;gap:var(--gap)}
+    .sidebar{background:var(--panel);border-radius:12px;padding:12px;box-shadow:var(--shadow);height:calc(100vh - 120px);position:sticky;top:18px;overflow:auto}
+    .main{display:flex;flex-direction:column;gap:var(--gap)}
+
+    .nav{display:flex;flex-direction:column;gap:6px}
+    .nav button{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;border:0;background:transparent;color:var(--muted);cursor:pointer}
+    .nav button.active{background:linear-gradient(90deg,rgba(14,165,233,0.09), rgba(14,165,233,0.03));color:#022c43}
+
+    .card{background:var(--panel);border-radius:12px;padding:16px;box-shadow:var(--shadow)}
+    .row{display:flex;gap:12px}
+    .col{flex:1}
+
+    label{display:block;font-size:13px;margin-bottom:6px;color:rgba(82,96,106,0.9)}
+    input,select,textarea,button{font-size:14px}
+    input,select,textarea{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(2,6,23,0.06);background:transparent}
+    button{padding:10px 12px;border-radius:10px;border:0;background:var(--accent);color:white;cursor:pointer}
+    .btn-ghost{background:transparent;border:1px solid rgba(2,6,23,0.06);color:var(--muted)}
+
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:10px;border-bottom:1px solid rgba(2,6,23,0.04);text-align:left}
+    thead th{background:transparent;color:var(--muted);font-weight:600}
+
+    .badge{display:inline-block;padding:6px 9px;border-radius:999px;font-weight:700;font-size:12px}
+    .b-pending{background:var(--danger);color:white}
+    .b-ready{background:var(--warning);color:#2b2b2b}
+    .b-posted{background:var(--success);color:white}
+
+    /* top controls */
+    .controls{display:flex;gap:8px;align-items:center}
+    .search{flex:1;padding:10px;border-radius:10px;border:1px solid rgba(2,6,23,0.06)}
+
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.35);display:flex;align-items:center;justify-content:center;z-index:999}
+    .modal{width:100%;max-width:820px;background:var(--panel);border-radius:12px;padding:18px;box-shadow:var(--shadow);max-height:88vh;overflow:auto}
+
+    /* toasts */
+    .toast-wrap{position:fixed;right:20px;bottom:20px;display:flex;flex-direction:column;gap:10px;z-index:2000}
+    .toast{background:var(--panel);padding:12px 14px;border-radius:10px;box-shadow:var(--shadow);color:var(--muted)}
+
+    /* responsive */
+    @media(max-width:980px){
+      .layout{grid-template-columns:1fr;}
+      .sidebar{position:relative;height:auto}
+      header{flex-wrap:wrap}
+    }
+
+    @media(max-width:520px){
+      header .brand{font-size:16px}
+      .search{font-size:13px}
+      input,select,button{font-size:13px}
+      th,td{padding:8px}
+    }
+
+    /* small helpers */
+    .muted{color:var(--muted)}
+    .right{margin-left:auto}
+    .hidden{display:none}
+    .small{font-size:12px}
+    .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:rgba(2,6,23,0.03);font-weight:600}
+    .flex-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .wrap-scroll{overflow:auto;max-height:40vh}
+    .multiselect{height:110px}
+  </style>
+</head>
+<body data-theme="light">
+  <header>
+    <div class="brand">CHINNAPATRA POST MANAGEMENT</div>
+    <div class="actions">
+      <div id="clock" class="muted small"></div>
+      <button id="themeToggle" class="btn-ghost">Dark</button>
+      <button id="logoutBtn" class="btn-ghost hidden">Logout</button>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="layout">
+
+      <aside class="sidebar">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+         <div style="display:flex;align-items:center;justify-content:center;">
+  <img src="D:\chinnapatra\Screenshot 2025-10-25 031929.png" alt="CP Logo" 
+       style="width:44px;height:44px;border-radius:10px;object-fit:cover;">
+</div>
+          <div>
+            <div style="font-weight:700;color:var(--accent-2)">CHINNAPATRA</div>
+            <div class="muted small">Post Management</div>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="active" data-panel="dashboard">📊 Dashboard</button>
+          <button data-panel="tasks">📝 Tasks</button>
+          <button id="manageNav" data-panel="manage" class="hidden">⚙️ Manage</button>
+          <button id="analyticsNav" data-panel="analytics" class="hidden">📈 Analytics</button>
+          <button id="backupNav" data-panel="backup" class="hidden">💾 Backup</button>
+          <div style="margin-top:10px"><button id="collapseBtn" class="btn-ghost">Collapse</button></div>
+        </nav>
+
+        <div style="margin-top:14px">
+          <div style="font-size:13px;font-weight:600;color:var(--accent-2)">Logged in as</div>
+          <div id="currentUser" class="muted small">—</div>
+        </div>
+      </aside>
+
+      <main class="main">
+
+        <!-- Login Card -->
+        <div id="loginCard" class="card">
+          <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <input id="loginId" placeholder="User ID" style="max-width:220px" />
+            <input id="loginPass" type="password" placeholder="Password" style="max-width:220px" />
+            <label class="muted"><input type="checkbox" id="rememberMe"> Remember me</label>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <button id="loginBtn">Login</button>
+            </div>
+          </div>
+          <div id="loginMsg" class="muted small" style="margin-top:10px"></div>
+          <p class="small muted" style="margin-top:10px">Note: Only SuperAdmin can create users and upload data. Before SuperAdmin uploads anything, tasks/types/artists/insta lists are empty.</p>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboard" class="card hidden">
+          <div class="row">
+            <div class="col card">
+              <h3 style="margin:0 0 8px 0">Summary</h3>
+              <div id="summaryCounts" class="muted small"></div>
+            </div>
+            <div class="col card">
+              <h3 style="margin:0 0 8px 0">Quick Actions</h3>
+              <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+                <button id="createTaskBtn" class="btn-ghost hidden">Create Task</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tasks -->
+        <div id="tasks" class="card hidden">
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <input id="search" class="search" placeholder="Search title, artist, insta..." />
+            <select id="filterType"></select>
+            <select id="filterStatus"><option value="">All Status</option><option>Pending</option><option>Ready</option><option>Posted</option></select>
+            <select id="sortBy"><option value="date_desc">Date ↓</option><option value="date_asc">Date ↑</option><option value="title">Title</option></select>
+            <div class="right controls">
+              <button id="bulkDeleteBtn" class="btn-ghost hidden">Bulk Delete</button>
+            </div>
+          </div>
+
+          <div style="overflow:auto;max-height:420px">
+            <table id="tasksTable"><thead><tr><th style="width:32px"></th><th>Title</th><th>Type</th><th>Date</th><th>Time</th><th>Day</th><th>Artists</th><th>Insta</th><th>Status</th><th>FB</th><th>IG</th><th>Actions</th></tr></thead><tbody></tbody></table>
+          </div>
+        </div>
+
+        <!-- Manage (SuperAdmin only) -->
+        <div id="manage" class="card hidden">
+          <div class="row">
+            <div class="col card">
+              <h3 style="margin-top:0">Users (SuperAdmin)</h3>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+                <input id="newUserId" placeholder="user id" style="max-width:180px" />
+                <input id="newUserPass" placeholder="password" type="password" style="max-width:180px" />
+                <select id="newUserRole"><option>Assigner</option><option>Scheduler</option><option>Poster</option><option>Viewer</option><option>SuperAdmin</option></select>
+                <button id="addUserBtn">Add</button>
+                <button id="clearUsersBtn" class="btn-ghost">Clear Non-Super</button>
+              </div>
+              <table id="usersTable"><thead><tr><th>ID</th><th>Role</th><th>Action</th></tr></thead><tbody></tbody></table>
+            </div>
+
+            <div class="col card">
+              <h3 style="margin-top:0">Task Types & Artists & Insta IDs</h3>
+
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+                <input id="newType" placeholder="new type" style="max-width:160px" />
+                <button id="addTypeBtn">Add Type</button>
+                <input id="newTaskTitleForSuper" placeholder="create task title" style="max-width:220px" />
+                <button id="createTaskSuperBtn" class="btn-ghost">Create Task (SuperAdmin)</button>
+              </div>
+              <ul id="typesList"></ul>
+
+              <h4 style="margin-top:12px">Artists</h4>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+                <input id="artistNameInp" placeholder="artist name" style="max-width:140px" />
+                <select id="artistRoleInp"><option>Writer</option><option>Editor</option><option>Singer</option><option>Photographer</option><option>Others</option></select>
+                <select id="artistTypeInp"></select>
+                <button id="addArtistBtn">Add Artist</button>
+              </div>
+              <ul id="artistsList"></ul>
+
+              <h4 style="margin-top:12px">Instagram IDs</h4>
+              <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+                <input id="instaInp" placeholder="@handle" style="max-width:180px" />
+                <button id="addInstaBtn">Add</button>
+              </div>
+              <ul id="instaList"></ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Analytics -->
+        <div id="analytics" class="card hidden">
+          <h3 style="margin-top:0">Analytics (SuperAdmin)</h3>
+          <div class="row">
+            <div class="col card">
+              <h4>By Status</h4>
+              <div id="analyticsStatus" class="muted small"></div>
+            </div>
+            <div class="col card">
+              <h4>By Type</h4>
+              <div id="analyticsType" class="muted small"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Backup -->
+        <div id="backup" class="card hidden">
+          <h3 style="margin-top:0">Backup & Restore</h3>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <button id="exportAllBtn">Export All Data (.json)</button>
+            <input type="file" id="importAllFile" />
+            <button id="importAllBtn" class="btn-ghost">Import</button>
+          </div>
+          <p class="muted small">Exported JSON includes users, taskTypes, artists, instaIds, tasks.</p>
+        </div>
+
+      </main>
+
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toasts"></div>
+
+  <!-- Modal Placeholder -->
+  <div id="modalBackdrop" class="modal-backdrop hidden"><div id="modalBox" class="modal"></div></div>
+
+  <script>
+    // ---------- Storage & defaults ----------
+    const STORAGE_KEYS = ['users','taskTypes','artists','instaIds','tasks'];
+    // IMPORTANT: Only SuperAdmin exists by default so SuperAdmin must login and create other users and upload data.
+    const defaults = {
+      users: [{id:'admin',pass:'admin',role:'SuperAdmin'}], // only admin exists by default
+      taskTypes: [], // empty until superadmin adds
+      artists: [],   // empty until superadmin adds
+      instaIds: [],  // empty until superadmin adds
+      tasks: []      // empty until superadmin creates or imports
+    };
+    function load(k){ try{return JSON.parse(localStorage.getItem(k))||[] }catch(e){return []} }
+    function save(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+    function ensure(){ for(const k in defaults){ if(!localStorage.getItem(k)) save(k, defaults[k]); }}
+    ensure();
+
+    // ---------- helpers ----------
+    const $ = id => document.getElementById(id);
+    function toast(msg, t=2500){ const w=$('toasts'); const d=document.createElement('div'); d.className='toast'; d.textContent=msg; w.appendChild(d); setTimeout(()=>{ d.style.opacity=0; setTimeout(()=>w.removeChild(d),400); }, t); }
+    function idGen(){ return 'id'+Math.random().toString(36).slice(2,9); }
+    function escapeHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    // ---------- session ----------
+    let currentUser = JSON.parse(localStorage.getItem('currentUser')||'null');
+    $('logoutBtn').addEventListener('click', ()=>{ localStorage.removeItem('currentUser'); location.reload(); });
+
+    // auto login remembered user
+    const remembered = JSON.parse(localStorage.getItem('rememberUser')||'null');
+    if(remembered){ $('loginId').value=remembered.id; $('loginPass').value=remembered.pass; $('rememberMe').checked=true; setTimeout(()=>$('loginBtn').click(), 200); }
+
+    // ---------- UI actions ----------
+    document.querySelectorAll('.nav button').forEach(btn=> btn.addEventListener('click', ()=>{ document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); const panel = btn.dataset.panel; showPanel(panel); }));
+    $('themeToggle').addEventListener('click', ()=>{ const cur = document.body.getAttribute('data-theme')||'light'; if(cur==='light'){ document.body.setAttribute('data-theme','dark'); $('themeToggle').textContent='Light'; } else { document.body.setAttribute('data-theme','light'); $('themeToggle').textContent='Dark'; } });
+
+    function showPanel(p){ ['dashboard','tasks','manage','analytics','backup'].forEach(id=>$(id).classList.add('hidden')); $(p).classList.remove('hidden'); }
+
+    // ---------- login ----------
+    $('loginBtn').addEventListener('click', ()=> {
+      const id = $('loginId').value.trim(); const pass = $('loginPass').value;
+      if(!id||!pass){ toast('Enter credentials'); return; }
+      const users = load('users'); const u = users.find(x=>x.id===id && x.pass===pass);
+      if(!u){ $('loginMsg').textContent='Invalid ID or password'; return; }
+      currentUser = u; localStorage.setItem('currentUser', JSON.stringify(u));
+      if($('rememberMe').checked) localStorage.setItem('rememberUser', JSON.stringify(u));
+      $('currentUser').textContent = `${u.id} — ${u.role}`; $('loginCard').classList.add('hidden'); $('logoutBtn').classList.remove('hidden'); toast('Welcome '+u.id); applyRole(u.role); renderAll();
+    });
+
+    function applyRole(role){
+      // show/hide main nav items
+      if(role==='SuperAdmin'){ $('manageNav').classList.remove('hidden'); $('analyticsNav').classList.remove('hidden'); $('backupNav').classList.remove('hidden'); $('createTaskBtn').classList.remove('hidden'); $('seedBtn').classList.remove('hidden'); $('bulkDeleteBtn').classList.remove('hidden'); }
+      else { $('manageNav').classList.add('hidden'); $('analyticsNav').classList.add('hidden'); $('backupNav').classList.add('hidden'); $('createTaskBtn').classList.add('hidden'); $('seedBtn').classList.add('hidden'); $('bulkDeleteBtn').classList.add('hidden'); }
+      // always show tasks to permitted roles
+      if(['SuperAdmin','Assigner','Scheduler','Poster','Viewer'].includes(role)) $('tasks').classList.remove('hidden');
+      showPanel('dashboard');
+    }
+
+    // ---------- Seed demo (only visible to SuperAdmin) ----------
+    $('seedBtn').addEventListener('click', ()=>{ if(!currentUser || currentUser.role!=='SuperAdmin'){ toast('Only SuperAdmin'); return; } if(!confirm('Seed demo data? This will overwrite lists but not overwrite existing users/tasks if present.')) return;
+      save('taskTypes', ['Photography','Golpo','Interview']);
+      save('artists', [{name:'Rina',role:'Writer',taskType:'Golpo'},{name:'Sujon',role:'Photographer',taskType:'Photography'},{name:'Anik',role:'Editor',taskType:'Photography'},{name:'Tania',role:'Singer',taskType:'Interview'}]);
+      save('instaIds', ['@chinnapatra','@demo_page']);
+      save('tasks', [{id:idGen(),title:'Village Photo',type:'Photography',date:'2025-09-21',time:'10:00',day:'Sunday',artists:['Sujon'],instas:['@chinnapatra'],status:'Pending',fb:false,ig:false}]);
+      toast('Demo seeded'); renderAll(); });
+
+    // ---------- Manage: Users / Types / Artists / Insta (SuperAdmin) ----------
+    $('addUserBtn').addEventListener('click', ()=>{ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); const id=$('newUserId').value.trim(); const pass=$('newUserPass').value; const role=$('newUserRole').value; if(!id||!pass) return toast('Provide id & pass'); let arr=load('users'); if(arr.find(u=>u.id===id)) return toast('User exists'); arr.push({id,pass,role}); save('users',arr); $('newUserId').value=''; $('newUserPass').value=''; toast('User added'); renderAll(); });
+    $('clearUsersBtn').addEventListener('click', ()=>{ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); if(!confirm('Delete non-SuperAdmin users?')) return; let arr=load('users'); arr = arr.filter(u=>u.role==='SuperAdmin'); save('users',arr); toast('Cleared non-super users'); renderAll(); });
+
+    $('addTypeBtn').addEventListener('click', ()=>{ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); const t=$('newType').value.trim(); if(!t) return; let arr=load('taskTypes'); if(arr.includes(t)) return toast('Type exists'); arr.push(t); save('taskTypes',arr); $('newType').value=''; toast('Type added'); renderAll(); });
+    $('addArtistBtn').addEventListener('click', ()=>{ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); const n=$('artistNameInp').value.trim(); const r=$('artistRoleInp').value; const tt=$('artistTypeInp').value; if(!n||!tt) return toast('Artist name and task type required'); let arr=load('artists'); arr.push({name:n,role:r,taskType:tt}); save('artists',arr); $('artistNameInp').value=''; toast('Artist added'); renderAll(); });
+    $('addInstaBtn').addEventListener('click', ()=>{ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); const id=$('instaInp').value.trim(); if(!id) return; let arr=load('instaIds'); if(arr.includes(id)) return toast('Exists'); arr.push(id); save('instaIds',arr); $('instaInp').value=''; toast('Instagram added'); renderAll(); });
+
+    window.deleteUser = function(i){ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); let arr=load('users'); if(arr[i].role==='SuperAdmin') return toast('Cannot delete SuperAdmin'); arr.splice(i,1); save('users',arr); renderAll(); };
+    window.deleteType = function(i){ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); let arr=load('taskTypes'); arr.splice(i,1); save('taskTypes',arr); renderAll(); };
+    window.deleteArtist = function(i){ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); let arr=load('artists'); arr.splice(i,1); save('artists',arr); renderAll(); };
+    window.deleteInsta = function(i){ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); let arr=load('instaIds'); arr.splice(i,1); save('instaIds',arr); renderAll(); };
+
+    // ---------- Tasks: SuperAdmin can create tasks; other roles can only edit allowed fields ----------
+    $('createTaskSuperBtn').addEventListener('click', ()=>{ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); const title=$('newTaskTitleForSuper').value.trim(); if(!title) return toast('Title required'); const arr=load('tasks'); arr.push({id:idGen(),title,type:'',date:'',time:'',day:'',artists:[],instas:[],status:'Pending',fb:false,ig:false}); save('tasks',arr); $('newTaskTitleForSuper').value=''; toast('Task created (empty)'); renderAll(); });
+    $('createTaskBtn').addEventListener('click', ()=>{ // only visible for superadmin normally
+      if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); openTaskModal(); });
+
+    function openTaskModal(task){ // modal that adapts fields to currentUser.role
+      const isEdit = !!task;
+      const role = currentUser ? currentUser.role : null;
+      const types = load('taskTypes');
+      const artists = load('artists');
+      const instas = load('instaIds');
+
+      // build artists grouped by role and filtered by selected type (if any)
+      const selectedType = (isEdit && task.type) ? task.type : '';
+      const artistOptionsForType = artists.filter(a => !selectedType || a.taskType === selectedType);
+
+      const titleHTML = `<h3 style="margin-top:0">${isEdit ? 'Task Details' : 'New Task (SuperAdmin)'}</h3>`;
+
+      // fields: title, type, date, time, day, artists (multi), instas (multi), status, fb/ig
+      let html = [titleHTML, '<div style="display:flex;gap:8px;flex-direction:column">'];
+
+      // Title - editable by SuperAdmin and Scheduler
+      const titleDisabled = !(role==='SuperAdmin' || role==='Scheduler');
+      html.push(`<label>Title</label><input id="m_title" placeholder="Title" value="${isEdit? escapeHtml(task.title):''}" ${titleDisabled? 'disabled':''} />`);
+
+      // Type - editable by SuperAdmin and Assigner
+      const typeDisabled = !(role==='SuperAdmin' || role==='Assigner');
+      html.push(`<label>Type</label><select id="m_type" ${typeDisabled? 'disabled':''}><option value="">--select--</option>${types.map(t=>`<option ${isEdit && t===task.type? 'selected':''}>${escapeHtml(t)}</option>`).join('')}</select>`);
+
+      // Date/time/day - assigner can edit these (and superadmin)
+      const schedDisabled = !(role==='SuperAdmin' || role==='Assigner');
+      html.push(`<div style="display:flex;gap:8px;flex-wrap:wrap"><div style="flex:1"><label>Date</label><input id="m_date" type="date" value="${isEdit?task.date:''}" ${schedDisabled? 'disabled':''}/></div><div style="width:120px"><label>Time</label><input id="m_time" type="time" value="${isEdit?task.time:''}" ${schedDisabled? 'disabled':''}/></div><div style="width:140px"><label>Day</label><input id="m_day" placeholder="Day" value="${isEdit? escapeHtml(task.day):''}" ${schedDisabled? 'disabled':''}/></div></div>`);
+
+      // Artists multi-select - editable by SuperAdmin and Scheduler (but scheduler sees only artists matching task type)
+      const artistsDisabled = !(role==='SuperAdmin' || role==='Scheduler');
+      // We'll show checkbox list grouped by role for clarity
+      html.push(`<label>Assign Artists${artistsDisabled? ' (read-only)':''}</label><div id="artistCheckboxWrap" class="wrap-scroll" style="border:1px solid rgba(2,6,23,0.06);padding:8px;border-radius:8px;height:140px;overflow:auto">`);
+      // compute list: if type selected then filter; otherwise show hint
+      const currentlySelectedArtists = isEdit ? (task.artists || []) : [];
+      if(artists.length===0){
+        html.push(`<div class="small muted">No artists available. SuperAdmin must add artists first.</div>`);
+      } else {
+        // show grouped by role
+        const grouped = {};
+        artists.forEach(a => {
+          if(!grouped[a.role]) grouped[a.role]=[];
+          grouped[a.role].push(a);
+        });
+        Object.keys(grouped).forEach(roleKey=>{
+          html.push(`<div style="margin-bottom:8px"><strong>${escapeHtml(roleKey)}</strong><div style="margin-left:8px">`);
+          grouped[roleKey].forEach((a, idx)=>{
+            // show artists, but if task type exists and doesn't match, grey out or disable for Scheduler
+            const disabledForScheduler = (role==='Scheduler' && task && task.type && a.taskType !== task.type);
+            const checked = currentlySelectedArtists.includes(a.name) ? 'checked' : '';
+            html.push(`<label style="display:block;margin:6px 0"><input type="checkbox" class="m_artist_cb" data-name="${escapeHtml(a.name)}" ${checked} ${artistsDisabled || disabledForScheduler? 'disabled':''}/> ${escapeHtml(a.name)} <span class="small muted">(${escapeHtml(a.taskType)})</span></label>`);
+          });
+          html.push(`</div></div>`);
+        });
+      }
+      html.push(`</div>`);
+
+      // Insta multi-select - editable by SuperAdmin and Scheduler
+      const instaDisabled = !(role==='SuperAdmin' || role==='Scheduler');
+      html.push(`<label>Assign Instagram IDs${instaDisabled? ' (read-only)':''}</label><select id="m_instas" multiple class="multiselect" ${instaDisabled? 'disabled':''}>${instas.map(i=>`<option ${isEdit && (task.instas||[]).includes(i) ? 'selected':''}>${escapeHtml(i)}</option>`).join('')}</select><div class="small muted">Hold Ctrl/Cmd to select multiple.</div>`);
+
+      // Status - superadmin can set; Assigner can set to Ready when scheduling; Scheduler can also set to Ready.
+      const statusDisabled = !(role==='SuperAdmin' || role==='Assigner' || role==='Scheduler');
+      html.push(`<label>Status</label><select id="m_status" ${statusDisabled? 'disabled':''}><option ${isEdit && task.status==='Pending' ? 'selected':''}>Pending</option><option ${isEdit && task.status==='Ready' ? 'selected':''}>Ready</option><option ${isEdit && task.status==='Posted' ? 'selected':''}>Posted</option></select>`);
+
+      // FB / IG check - Poster can mark posted, SuperAdmin can also toggle
+      const postDisabled = !(role==='SuperAdmin' || role==='Poster');
+      html.push(`<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><label><input type="checkbox" id="m_fb" ${isEdit && task.fb? 'checked':''} ${postDisabled? 'disabled':''}/> FB Posted</label><label><input type="checkbox" id="m_ig" ${isEdit && task.ig? 'checked':''} ${postDisabled? 'disabled':''}/> IG Posted</label></div>`);
+
+      html.push(`<div style="display:flex;gap:8px;margin-top:12px">`);
+      // Save button visibility depends on role having any editable fields
+      const canSave = (role==='SuperAdmin') || (role==='Assigner') || (role==='Scheduler') || (role==='Poster');
+      if(canSave) html.push(`<button id="saveTaskBtn">Save</button>`);
+      html.push(`<button id="cancelTaskBtn" class="btn-ghost">Close</button>`);
+      if(isEdit && role==='SuperAdmin') html.push(`<button id="delTaskBtn" class="btn-ghost">Delete</button>`);
+      html.push(`</div>`);
+      html.push(`</div>`);
+
+      $('modalBox').innerHTML = html.join('');
+      $('modalBackdrop').classList.remove('hidden');
+
+      // behavior: when type changes, update artist checkboxes enabling/disabling for Scheduler
+      const typeSel = $('m_type');
+      function updateArtistAvailability(){
+        const selectedTypeVal = typeSel ? typeSel.value : '';
+        document.querySelectorAll('.m_artist_cb').forEach(cb=>{
+          const name = cb.dataset.name;
+          const artistObj = load('artists').find(a=>a.name===name);
+          if(!artistObj) return;
+          if(currentUser.role==='Scheduler'){
+            if(selectedTypeVal && artistObj.taskType !== selectedTypeVal){
+              cb.disabled = true;
+              cb.parentElement.classList.add('muted');
+            } else {
+              cb.disabled = false;
+              cb.parentElement.classList.remove('muted');
+            }
+          }
+        });
+      }
+      if(typeSel) typeSel.addEventListener('change', updateArtistAvailability);
+      updateArtistAvailability();
+
+      // cancel
+      $('cancelTaskBtn').addEventListener('click', ()=> $('modalBackdrop').classList.add('hidden'));
+
+      // save
+      if(canSave){
+        $('saveTaskBtn').addEventListener('click', ()=>{
+          let arr = load('tasks'); if(isEdit){
+            const idx = arr.findIndex(x=>x.id===task.id);
+            if(idx===-1) return toast('Task missing');
+            // only update permitted fields
+            if(currentUser.role==='SuperAdmin'){
+              arr[idx].title = $('m_title').value.trim();
+              arr[idx].type = $('m_type').value;
+              arr[idx].date = $('m_date').value;
+              arr[idx].time = $('m_time').value;
+              arr[idx].day = $('m_day').value;
+              arr[idx].artists = Array.from(document.querySelectorAll('.m_artist_cb:checked')).map(c=>c.dataset.name);
+              arr[idx].instas = Array.from($('m_instas').selectedOptions).map(o=>o.value);
+              arr[idx].status = $('m_status').value;
+              arr[idx].fb = !!$('m_fb').checked;
+              arr[idx].ig = !!$('m_ig').checked;
+            } else if(currentUser.role==='Assigner'){
+              // assigner can only set type/date/time/day and status to Ready
+              arr[idx].type = $('m_type').value;
+              arr[idx].date = $('m_date').value;
+              arr[idx].time = $('m_time').value;
+              arr[idx].day = $('m_day').value;
+              arr[idx].status = $('m_status').value;
+            } else if(currentUser.role==='Scheduler'){
+              // scheduler can set title, artists (only allowed ones), instas, status
+              arr[idx].title = $('m_title').value.trim();
+              arr[idx].artists = Array.from(document.querySelectorAll('.m_artist_cb:checked')).map(c=>c.dataset.name);
+              arr[idx].instas = Array.from($('m_instas').selectedOptions).map(o=>o.value);
+              arr[idx].status = $('m_status').value;
+            } else if(currentUser.role==='Poster'){
+              // poster can only mark FB/IG posted (and optionally status)
+              arr[idx].fb = !!$('m_fb').checked;
+              arr[idx].ig = !!$('m_ig').checked;
+              if($('m_status')) arr[idx].status = $('m_status').value;
+            }
+            save('tasks',arr); $('modalBackdrop').classList.add('hidden'); renderAll(); toast('Saved');
+          } else {
+            // creating new task (usually SuperAdmin only)
+            if(currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin can create tasks');
+            const newT = {
+              id: idGen(),
+              title: $('m_title').value.trim(),
+              type: $('m_type').value,
+              date: $('m_date').value,
+              time: $('m_time').value,
+              day: $('m_day').value,
+              artists: Array.from(document.querySelectorAll('.m_artist_cb:checked')).map(c=>c.dataset.name),
+              instas: Array.from($('m_instas').selectedOptions).map(o=>o.value),
+              status: $('m_status').value || 'Pending',
+              fb: !!$('m_fb').checked,
+              ig: !!$('m_ig').checked
+            };
+            const arr = load('tasks'); arr.push(newT); save('tasks',arr); $('modalBackdrop').classList.add('hidden'); renderAll(); toast('Task created');
+          }
+        });
+      }
+
+      // delete
+      if(isEdit && currentUser && currentUser.role==='SuperAdmin'){
+        $('delTaskBtn').addEventListener('click', ()=>{ if(!confirm('Delete task?')) return; let arr=load('tasks'); const idx = arr.findIndex(x=>x.id===task.id); if(idx!==-1){ arr.splice(idx,1); save('tasks',arr); $('modalBackdrop').classList.add('hidden'); renderAll(); toast('Deleted'); } });
+      }
+    }
+
+    // ---------- Minimal action shortcuts ----------
+    function quickEdit(idx){
+      const tasks = load('tasks'); openTaskModal(tasks[idx]);
+    }
+
+    // ---------- Render tasks list with role-limited actions ----------
+    $('newTaskBtn')?.addEventListener('click', ()=> openTaskModal());
+
+    function renderTasks(){
+      const tbody=$('tasksTable').querySelector('tbody'); tbody.innerHTML='';
+      let arr = load('tasks');
+      const q=$('search').value.trim().toLowerCase(); const ft=$('filterType').value; const fs=$('filterStatus').value; const sort=$('sortBy').value;
+      if(q) arr = arr.filter(t=> (t.title||'').toLowerCase().includes(q) || (t.artists||[]).join(' ').toLowerCase().includes(q) || (t.instas||[]).join(' ').toLowerCase().includes(q));
+      if(ft) arr = arr.filter(t=>t.type===ft);
+      if(fs) arr = arr.filter(t=>t.status===fs);
+      if(sort==='date_desc') arr.sort((a,b)=> (b.date||'').localeCompare(a.date||'')); else if(sort==='date_asc') arr.sort((a,b)=> (a.date||'').localeCompare(b.date||'')); else if(sort==='title') arr.sort((a,b)=> (a.title||'').localeCompare(b.title||''));
+      arr.forEach((t,i)=>{ const tr=document.createElement('tr');
+        const artistsText = (t.artists || []).join(', ');
+        const instasText = (t.instas || []).join(', ');
+        const statusBadge = t.status==='Pending'?`<span class="badge b-pending">Pending</span>`: t.status==='Ready'?`<span class="badge b-ready">Ready</span>`:`<span class="badge b-posted">Posted</span>`;
+        tr.innerHTML = `<td><input type="checkbox" data-idx="${i}"></td>
+          <td>${escapeHtml(t.title || '')}</td>
+          <td>${escapeHtml(t.type || '')}</td>
+          <td>${escapeHtml(t.date || '')}</td>
+          <td>${escapeHtml(t.time || '')}</td>
+          <td>${escapeHtml(t.day || '')}</td>
+          <td>${escapeHtml(artistsText)}</td>
+          <td>${escapeHtml(instasText)}</td>
+          <td>${statusBadge}</td>
+          <td>${t.fb? '✅':''}</td>
+          <td>${t.ig? '✅':''}</td>
+          <td></td>`;
+        tbody.appendChild(tr);
+
+        // actions cell (role-limited)
+        const actionsCell = tr.querySelector('td:last-child');
+        const role = currentUser ? currentUser.role : '';
+        // Everyone can view details (open modal) to see full task details
+        const viewBtn = document.createElement('button'); viewBtn.className='btn-ghost'; viewBtn.textContent='View'; viewBtn.addEventListener('click', ()=> openTaskModal(t)); actionsCell.appendChild(viewBtn);
+
+        // Assigner can edit scheduling (open modal where only date/time/day/type enabled)
+        if(role==='Assigner'){ const assignBtn=document.createElement('button'); assignBtn.className='btn-ghost'; assignBtn.textContent='Assign Schedule'; assignBtn.addEventListener('click', ()=> openTaskModal(t)); actionsCell.appendChild(assignBtn); }
+
+        // Scheduler can set title, assign artists & instas
+        if(role==='Scheduler'){ const schedBtn=document.createElement('button'); schedBtn.className='btn-ghost'; schedBtn.textContent='Schedule/Artists'; schedBtn.addEventListener('click', ()=> openTaskModal(t)); actionsCell.appendChild(schedBtn); }
+
+        // Poster can mark posted
+        if(role==='Poster'){ const postFb=document.createElement('button'); postFb.className='btn-ghost'; postFb.textContent='Mark FB'; postFb.addEventListener('click', ()=>{ let A=load('tasks'); A[i].fb=true; A[i].status='Posted'; save('tasks',A); renderAll(); toast('Marked FB posted'); }); actionsCell.appendChild(postFb);
+          const postIg=document.createElement('button'); postIg.className='btn-ghost'; postIg.textContent='Mark IG'; postIg.addEventListener('click', ()=>{ let A=load('tasks'); A[i].ig=true; A[i].status='Posted'; save('tasks',A); renderAll(); toast('Marked IG posted'); }); actionsCell.appendChild(postIg);
+        }
+
+        // SuperAdmin full edit/delete
+        if(role==='SuperAdmin'){ const editBtn=document.createElement('button'); editBtn.className='btn-ghost'; editBtn.textContent='Edit'; editBtn.addEventListener('click', ()=> openTaskModal(t)); actionsCell.appendChild(editBtn);
+          const delBtn=document.createElement('button'); delBtn.className='btn-ghost'; delBtn.textContent='Delete'; delBtn.addEventListener('click', ()=>{ if(!confirm('Delete task?')) return; let A=load('tasks'); A.splice(i,1); save('tasks',A); renderAll(); toast('Deleted'); }); actionsCell.appendChild(delBtn);
+        }
+      });
+    }
+
+    // bulk delete (superadmin only)
+    $('bulkDeleteBtn').addEventListener('click', ()=>{ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); const st = $('filterStatus').value; if(!st) return toast('Select status'); if(!confirm(`Delete all ${st} tasks?`)) return; let arr=load('tasks'); arr = arr.filter(t=>t.status!==st); save('tasks',arr); renderAll(); toast('Bulk delete done'); });
+
+    // ---------- Render manage lists & summary & analytics ----------
+    function renderAll(){
+      // users
+      const ut=$('usersTable').querySelector('tbody'); ut.innerHTML=''; load('users').forEach((u,i)=>{ ut.innerHTML += `<tr><td>${escapeHtml(u.id)}</td><td>${escapeHtml(u.role)}</td><td>${u.role!=='SuperAdmin'?`<button onclick="deleteUser(${i})">Del</button>`:''}</td></tr>`; });
+
+      // types/artists/instas
+      $('typesList').innerHTML = ''; load('taskTypes').forEach((t,i)=> $('typesList').innerHTML += `<li>${escapeHtml(t)} <button onclick="deleteType(${i})">Del</button></li>`);
+      $('artistsList').innerHTML=''; load('artists').forEach((a,i)=> $('artistsList').innerHTML += `<li>${escapeHtml(a.name)} — ${escapeHtml(a.role)} / ${escapeHtml(a.taskType)} <button onclick="deleteArtist(${i})">Del</button></li>`);
+      $('instaList').innerHTML = ''; load('instaIds').forEach((id,i)=> $('instaList').innerHTML += `<li>${escapeHtml(id)} <button onclick="deleteInsta(${i})">Del</button></li>`);
+
+      // populate filter selects
+      $('filterType').innerHTML = '<option value="">All Types</option>'; $('artistTypeInp').innerHTML = '<option value="">--select type--</option>';
+      load('taskTypes').forEach(t=>{ $('filterType').innerHTML += `<option>${escapeHtml(t)}</option>`; $('artistTypeInp').innerHTML += `<option>${escapeHtml(t)}</option>`; });
+
+      // summary
+      renderSummary();
+      renderTasks();
+      renderAnalytics();
+    }
+
+    function renderSummary(){ const tasks=load('tasks'); const pending=tasks.filter(t=>t.status==='Pending').length; const ready=tasks.filter(t=>t.status==='Ready').length; const posted=tasks.filter(t=>t.status==='Posted').length; $('summaryCounts').innerHTML = `Pending: <strong>${pending}</strong><br>Ready: <strong>${ready}</strong><br>Posted: <strong>${posted}</strong><br>Total: <strong>${tasks.length}</strong>`; }
+
+    function renderAnalytics(){ if(!currentUser || currentUser.role!=='SuperAdmin'){ $('analyticsStatus').innerHTML=''; $('analyticsType').innerHTML=''; return; } const tasks=load('tasks'); const byStatus = {}; tasks.forEach(t=> byStatus[t.status] = (byStatus[t.status]||0)+1); $('analyticsStatus').innerHTML = Object.entries(byStatus).map(([k,v])=>`${escapeHtml(k)}: <strong>${v}</strong>`).join('<br>') || 'No tasks'; const byType={}; tasks.forEach(t=> byType[t.type] = (byType[t.type]||0)+1); $('analyticsType').innerHTML = Object.entries(byType).map(([k,v])=>`${escapeHtml(k)}: <strong>${v}</strong>`).join('<br>') || 'No tasks'; }
+
+    // ---------- Backup / Restore ----------
+    $('exportAllBtn').addEventListener('click', ()=>{ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); const data={}; for(const k of STORAGE_KEYS) data[k] = load(k); const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='chinnapatra_backup.json'; a.click(); URL.revokeObjectURL(a.href); toast('Exported JSON'); });
+    $('importAllBtn').addEventListener('click', ()=>{ if(!currentUser||currentUser.role!=='SuperAdmin') return toast('Only SuperAdmin'); const f=$('importAllFile').files[0]; if(!f) return toast('Select file'); const r=new FileReader(); r.onload = e => { try{ const data = JSON.parse(e.target.result); for(const k of STORAGE_KEYS) if(data[k]) save(k,data[k]); toast('Imported data'); renderAll(); } catch(err){ toast('Invalid JSON'); } }; r.readAsText(f); });
+
+    // ---------- Event listeners ----------
+    $('search').addEventListener('input', renderTasks);
+    $('filterType').addEventListener('change', renderTasks);
+    $('filterStatus').addEventListener('change', renderTasks);
+    $('sortBy').addEventListener('change', renderTasks);
+
+    // ---------- misc: clock, idle logout ----------
+    function updateClock(){ $('clock').textContent = new Date().toLocaleString(); } setInterval(updateClock,1000); updateClock();
+
+    let idleTimer; function resetIdle(){ clearTimeout(idleTimer); idleTimer = setTimeout(()=>{ localStorage.removeItem('currentUser'); toast('Logged out due to inactivity'); setTimeout(()=>location.reload(),800); }, 1000*60*30); }
+    ['mousemove','keydown','click','touchstart'].forEach(evt=>document.addEventListener(evt, resetIdle)); resetIdle();
+
+    // ---------- init ----------
+    function init(){ renderAll(); if(currentUser){ $('loginCard').classList.add('hidden'); $('logoutBtn').classList.remove('hidden'); $('currentUser').textContent = `${currentUser.id} — ${currentUser.role}`; applyRole(currentUser.role); } else { $('loginCard').classList.remove('hidden'); showPanel('dashboard'); } }
+    init();
+// Stop auto-login after logout
+$('logoutBtn').addEventListener('click', () => {
+    localStorage.removeItem('currentUser');  // clear current session
+    localStorage.removeItem('rememberUser'); // remove remembered credentials
+    currentUser = null;
+});
+
+  </script>
+</body>
+</html>
